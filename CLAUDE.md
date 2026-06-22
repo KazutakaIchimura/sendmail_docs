@@ -63,6 +63,7 @@ z.number({ error: '...' })
 
 - **注意**: `DatePicker` と `SeparatedDatePicker` は `react-aria-components` 依存のため `src/components/dads/index.ts` から除外済み。使う場合は先にパッケージをインストールする。
 - コンポーネントは `@/components/dads/Button/Button` のようにファイル直接インポートする。
+- **`@digital-go-jp/tailwind-theme-plugin` は `^1.0.1`**（2026-06-22更新、旧 `0.3.4`）。v1で追加されたセマンティックカラー `key`（既定は青系）を、本アプリのブランド色（緑系）に上書きするため `tailwind.config.js` で `theme.extend.colors.key` をプラグイン自身の `green` スケールで上書きしている。`Button`/`Checkbox`/`Radio` はこの `key-*` トークンを使用する（他コンポーネントは引き続き `green-*` 等の固定クラス）。
 
 ### 共通 UI コンポーネント（src/components/ui/）
 
@@ -75,13 +76,15 @@ z.number({ error: '...' })
 
 ### タイポグラフィ（DADS クラス）
 
+クラス名は `text-std-{サイズ}{B|N}-{行間}` の形式（末尾は固定の`-7`ではなく実際の行間値。コンポーネントごとに異なる）。
+
 ```
-text-std-32B-7  → 見出し大（32px Bold）
-text-std-24B-7  → 見出し中（24px Bold）
-text-std-17B-7  → 見出し小（17px Bold）
-text-std-16N-7  → 本文（16px Normal）
-text-std-14N-7  → 補足テキスト（14px Normal）
-text-std-14B-7  → 補足テキスト Bold
+text-std-32B-150  → 見出し大（32px Bold）
+text-std-24B-150  → 見出し中（24px Bold）
+text-std-17B-170  → 見出し小（17px Bold）
+text-std-16N-170  → 本文（16px Normal）
+text-std-14N-130  → 補足テキスト（14px Normal）
+text-std-14B-130  → 補足テキスト Bold
 ```
 
 ### パスエイリアス
@@ -92,24 +95,26 @@ text-std-14B-7  → 補足テキスト Bold
 | 画面 | パス | 主な API |
 |------|------|----------|
 | ダッシュボード | `/` | `GET /api/dashboard` |
-| 送付先別一覧 | `/mail-sends/by-office` | `GET /api/mail-sends/by-office` |
-| 送付物作成 | `/mail-sends/new` | `POST /api/mail-sends`、`GET /api/users/{id}/offices` |
-| 送付履歴 | `/mail-sends/history` | `GET /api/mail-sends` |
-| 利用者一覧 | `/users` | `GET /api/users` |
+| 送付先別一覧 | `/mail-sends/by-office` | `GET /api/mail-sends/by-office`（フィルタ対応） |
+| 送付物作成 | `/mail-sends/new` | `POST /api/mail-sends`、`GET /api/users`、`GET /api/offices`（全件） |
+| 送付履歴 | `/mail-sends/history` | `GET /api/mail-sends`（フィルタ対応）、`GET /api/mail-sends/export`（CSV） |
+| 利用者一覧 | `/users` | `GET /api/users`（`includeInactive=true` は ADMIN 限定） |
 | 利用者詳細 | `/users/:id` | `GET /api/users/{id}`、`DELETE /api/users/{id}/offices/{officeId}` |
-| 利用者登録/編集 | `/users/new`、`/users/:id/edit` | `POST/PUT /api/users` |
+| 利用者登録/編集 | `/users/new`、`/users/:id/edit` | `POST /api/users`、`PATCH /api/users/{id}`（PUT ではない） |
 | 事業所一覧 | `/offices` | `GET /api/offices` |
 | 事業所登録/編集 | `/offices/new`、`/offices/:id/edit` | `POST/PUT /api/offices` |
-| スタッフ管理 | `/staffs` | `GET /api/staffs`（ADMIN のみ） |
-| スタッフ登録/編集 | `/staffs/new`、`/staffs/:id/edit` | `POST/PUT /api/staffs` |
+| スタッフ管理 | `/staffs` | `GET /api/staffs`（ADMIN のみ、`includeInactive=true` 対応） |
+| スタッフ登録/編集 | `/staffs/new`、`/staffs/:id/edit` | `POST/PUT /api/staffs`、有効化は `PATCH /api/staffs/{id}/activate` |
 
 ## 重要な実装ルール
 
 - **送付済み一括処理**: `POST /api/mail-send-batches` に `mailSendIds[]` を送る
 - **ConfirmModal**: 送付済みにする・削除・無効化の前に必ず表示する
 - **isOverdue フラグ**: `sendMonth < 当月 AND status=PENDING` の場合 true。赤バッジで表示
-- **STEP 式フォーム（送付物作成）**: STEP1（利用者）→ STEP2（事業所、userId で動的絞り込み）→ STEP3（種別）→ STEP4（送付月）→ 確認
+- **STEP 式フォーム（送付物作成、`CreatePage.tsx`）**: STEP0（利用者、氏名・ふりがなで絞り込み可）→ STEP1（事業所、全件表示・複数選択）→ STEP2（送付種別、複数選択）→ STEP3（送付月）→ STEP4（確認）。登録は「事業所×送付種別」の組み合わせ単位で並行実行し、一部失敗時は失敗分のみ再送信できる
+- **利用者一覧の `includeInactive`**: バックエンドが ADMIN 限定で 403 を返すため、フロントは既定で `GET /api/users`（有効のみ）を呼び、「すべて表示」切替は `useAuth().isAdmin` の場合のみ表示する
 - **スタッフ安全設計**: 自己無効化禁止・ADMIN 最低 1 名維持（`StaffListPage` で `canDisable()` チェック）
+- **データ取得失敗時の再試行**: ダッシュボード・送付先別一覧・送付履歴は `isFetching`/`refetch` を使い、`role="alert"` のエラー表示＋再読み込みボタンを表示する（認知アクセシビリティ対応、2026-06-21〜22）
 - **Tailwind CSS v3**（v4 ではない）がインストールされているため、v4 の CSS-first 設定は使わない
 
 ## アクセシビリティ設定パネル（実装済み）
