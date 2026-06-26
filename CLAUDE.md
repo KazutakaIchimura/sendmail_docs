@@ -97,7 +97,7 @@ text-std-14B-130  → 補足テキスト Bold
 | ダッシュボード | `/` | `GET /api/dashboard` |
 | 送付先別一覧 | `/mail-sends/by-office` | `GET /api/mail-sends/by-office`（フィルタ対応） |
 | 送付物作成 | `/mail-sends/new` | `POST /api/mail-sends`、`GET /api/users`、`GET /api/offices`（全件） |
-| 送付履歴 | `/mail-sends/history` | `GET /api/mail-sends`（フィルタ対応）、`GET /api/mail-sends/export`（CSV） |
+| 送付履歴 | `/mail-sends/history` | `GET /api/mail-sends`（フィルタ対応） |
 | 利用者一覧 | `/users` | `GET /api/users`（`includeInactive=true` は ADMIN 限定） |
 | 利用者詳細 | `/users/:id` | `GET /api/users/{id}`、`DELETE /api/users/{id}/offices/{officeId}` |
 | 利用者登録/編集 | `/users/new`、`/users/:id/edit` | `POST /api/users`、`PATCH /api/users/{id}`（PUT ではない） |
